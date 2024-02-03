@@ -1,4 +1,4 @@
-This a project on census data
+This a project on census data.
 This project takes in a feature vector and determines whether or not an individual makes more than 50k a year
 
 Neural Network ML model on Census-Income Data
