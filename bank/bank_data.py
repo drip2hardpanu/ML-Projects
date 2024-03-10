@@ -126,8 +126,9 @@ valid, x_valid, y_valid = scaling_dataset(valid, quant_variables, oversample=Fal
 test, x_test, y_test = scaling_dataset(test, quant_variables, oversample=False)
 
 sampling_check(y_train)
+'''
+#FOR TRAINING; from Kylie Ying @https://www.kylieying.com/
 
-#training model
 least_val_loss = float('inf')
 least_loss_mdoel = None
 epochs = 100
@@ -144,3 +145,6 @@ for num_nodes in [16,32,64]:
         if val_loss < least_val_loss:
           least_val_loss = val_loss
           least_loss_model = model
+'''
+
+model,history = train_model(x_train, y_train, 64, 0.2, 0.001, 32, 100)
