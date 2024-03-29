@@ -2,7 +2,7 @@ import pandas as pd
 import pandas_datareader as web
 from pandas_datareader import data as pdr
 import yfinance as yf
-from kerastuner.applications import HyperResNet
+import keras_tuner as HyperResNet
 
 from tensorflow import keras as kr
 from sklearn.preprocessing import MinMaxScaler
@@ -167,7 +167,7 @@ def predict(tkr, date, hyperparametization = "off"):
   
   ## visualizing results
   train = prices[:train_len]
-  valid = prices[train_len+60:]
+  valid = prices[train_len + 60:]
 
   predictTomorrow = predictions[-1]
   
@@ -182,6 +182,7 @@ def predict(tkr, date, hyperparametization = "off"):
   train = train.set_index(tkr.index[:train_len])
   train = train.rename(columns = {0:'Close'})
 
+'''
   #Plot the data
   valid["Predictions"] = predictions
 
@@ -197,3 +198,4 @@ def predict(tkr, date, hyperparametization = "off"):
   plt.savefig('prediction.jpg')
 
   print(valid)
+'''
