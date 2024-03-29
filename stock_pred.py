@@ -112,9 +112,7 @@ if "-h" in sys.argv[1:] or "--help" in sys.argv[1:]:
   sys.exit()
 
 # Checking for flags
-
 tkr = flagCheck(n, sys.argv, "-t", "--ticker")
-print(tkr)
 date = flagCheck(n, sys.argv, "-d", "--date")
 
 yf.pdr_override()
@@ -223,7 +221,6 @@ predictTomorrow = predictions[-1]
 
 print(f'prediction for tmr: {predictTomorrow}')
 
-
 valid = pd.DataFrame(valid)
 valid = valid.set_index(tkr.index[lenPrices-len(valid):])
 valid = valid.rename(columns = {0:'Close'})
@@ -245,5 +242,3 @@ plt.plot(train['Close'])
 plt.plot(valid[['Close', 'Predictions']])
 plt.legend(['Train', 'Val', 'Predictions'], loc = 'lower right')
 plt.savefig('prediction.jpg')
-
-print(valid)
