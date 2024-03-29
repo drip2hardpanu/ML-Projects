@@ -11,6 +11,9 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
+import sys
+import os
+
 """Splits historical stock data into features and classification.
 
 XY_split splits data into feature data and classification data on yfinance stock data for LSTM and/or ML prediction analyses. Classification data is a given stock price whereas feature data is the stock prices from the past n days. 
@@ -25,8 +28,8 @@ def XY_split(data, n):
   y = [] #feature
 
   for i in range(n, len(data)):
-    x.append(data[i-n:i,0])
-    y.append(data[i,0])
+    x.append(data[i-n:i,0]) #creates feature matrices that contain the last 60 day's stock prices 
+    y.append(data[i,0]) #
   
   x = np.array(x)
   y = np.array(y)
@@ -66,6 +69,22 @@ def model_creation(hp):
   model.add(kr.layers.Dense(1))
   model.compile(optimizer='adam', loss='mean_squared_error') 
 
+
+'''
+A check to ensure a given flag is in the input
+'''
+def flagCheck(argLen, args, arg1, arg2):
+  if arg1 in args or arg2 in args:
+
+    for i in range(1, argLen):
+      if args[i] == arg1 or args[i] == arg2:
+        return sys.argv[i+1]
+  
+    print(f"\n missing {arg2}!")
+    sys.exit()
+
+## HELPER FUNCTIONS END HERE ##
+
 """Returns tomorrow's predicted stock prices
 
 predict uses an LSTM ML model to predict tomorrows stock data given a ticker and a date. The ticker indicates the stock to be predicted and the date reflects the beginning of data collection. 
@@ -75,127 +94,156 @@ predict uses an LSTM ML model to predict tomorrows stock data given a ticker and
   predict(tkr, date)
   predict("AAPL", "2012-01-01")
 """
-def predict(tkr, date, hyperparametization = "off"):
-  yf.pdr_override()
-  scaler = MinMaxScaler(feature_range=(0,1))
+#def predict(tkr, date, hyperparametization = "off"):
 
-  ### GETTING DATA ###
+n = len(sys.argv)
+listOfOptions = ["-t", "--ticker", "-d", "--date", "-hp", "--hyperparamatization", "-h", "--help"]
 
-  stock_name = tkr
+if "-h" in sys.argv[1:] or "--help" in sys.argv[1:]:
+  print("\n -h help")
+  print(
+      "\n stock_pred.py takes command line input:"
+      '\n example usage: run stock_pred.py -t "AAPL" -d "2012-01-01" '
+      "\n -t, --ticker : the ticker to pull from yahoo finance"
+      "\n -d, --date : the date to begin recording historical data"
+      "\n -hp, --hyperparamatization : CURRENTLY INACTIVE the hyperparameterization method for LSTM"
+      "\n -h, --help : the help menu"
+  )
+  sys.exit()
 
-  #test daate: 2012-01-01
-  tkr = pdr.get_data_yahoo(tkr, start=date)
+# Checking for flags
 
-  print()
-  print(f'{stock_name} Data Accessed || Starting on {date}')
-  #initial plot// you need to figure out how to save this onto the person's computer
+tkr = flagCheck(n, sys.argv, "-t", "--ticker")
+print(tkr)
+date = flagCheck(n, sys.argv, "-d", "--date")
 
-  plt.figure(figsize=(8,4))
-  plt.title('Close Price History')
-  plt.xlabel('Date', fontsize=18)
-  plt.ylabel('Close Price US', fontsize=18)
-  plt.plot(tkr['Close'])
-  plt.savefig('hist.jpg')
+yf.pdr_override()
+scaler = MinMaxScaler(feature_range=(0,1))
 
+### GETTING DATA ###
 
-  ### DATA PROCESSING ###
+stock_name = tkr
 
-  prices_quote = tkr['Close'].to_numpy()
-  prices = prices_quote.reshape(-1,1) #reshaping the array for LSTM input
-  lenPrices = len(prices)
+#test daate: 2012-01-01
+tkr = pdr.get_data_yahoo(tkr, start=date)
 
-  #SCALING the data to fit between (0 and 1)
-  scaled_data = scaler.fit_transform(prices)
-  scaled_data
+print()
+print(f'{stock_name} Data Accessed || Starting on {date}')
+#initial plot// you need to figure out how to save this onto the person's computer
 
-  #SPLITTING the data into training and testing (6:4)
-  train, test = np.split(scaled_data,[int(0.6*lenPrices)])
+plt.figure(figsize=(8,4))
+plt.title('Close Price History')
+plt.xlabel('Date', fontsize=18)
+plt.ylabel('Close Price US', fontsize=18)
+plt.plot(tkr['Close'])
+plt.savefig('hist.jpg')
 
-  train_len = len(train)
-  train_len = int(train_len)
+### DATA PROCESSING ###
 
-  #SPLITTING the datasets into features and close
-  training_x, training_y = XY_split(train, 60)
+prices_quote = tkr['Close'].to_numpy()
 
-  #CORRECT testing dataset to reflect non-scaled data
-  testing_x, testing_y = XY_split(test, 60)
-  testing_y = prices[train_len+60:, :]
+#reshaping the array for LSTM input
+prices = prices_quote.reshape(-1,1)
+prices = np.array(prices)
+print(prices) 
 
-  training_x = reshaping_dataset(training_x)
-  testing_x = reshaping_dataset(testing_x)
+lenPrices = len(prices)
 
-  print()
-  print(f'{stock_name} Data Processing Finished!')
-  
-  
-  ## LSTM GENERATION ##
+#SCALING the data to fit between (0 and 1)
+scaled_data = scaler.fit_transform(prices)
+scaled_data
 
-  '''
-  5 Layer Long Short-Term Memory Model
+#SPLITTING the data into training and testing (6:4)
+train, test = np.split(scaled_data,[int(0.6*lenPrices)])
 
-  Layer 1: 128 units LSTM 
-  Layer 2: 64 units LSTM
-  Layer 3: 64 units LSTM
-  Layer 4: 25 units Dense (Regular Neural Network)
-  Layer 5: 1 unit Dense (Return Layer)
+train_len = len(train)
+train_len = int(train_len)
 
-  Optimized to minimize MSE
-  '''
-  model = kr.models.Sequential()
-  model.add(kr.layers.LSTM(128, return_sequences=True, input_shape=(training_x.shape[1], training_x.shape[2])))
-  model.add(kr.layers.LSTM(64, return_sequences=True))
-  model.add(kr.layers.LSTM(64, return_sequences=False))
-  model.add(kr.layers.Dense(25))
-  model.add(kr.layers.Dense(1))
-  model.compile(optimizer='adam', loss='mean_squared_error') 
+#readjusting test
+test = prices[train_len - 60:]
 
-  print()
-  print('LSTM Model Generated')
+#SPLITTING the datasets into features and close
+training_x, training_y = XY_split(train, 60)
 
-  #train the model
-  model.fit(training_x, training_y, batch_size = 1, epochs = 1)
+#CORRECT testing dataset to reflect non-scaled data
+testing_x, testing_y = XY_split(test, 60)
+testing_y = prices[train_len:, :]
 
-  ## TESTING MODEL##
-  predictions = model.predict(testing_x)
-  predictions = scaler.inverse_transform(predictions)
+training_x = reshaping_dataset(training_x)
+testing_x = reshaping_dataset(testing_x)
 
-  #Get the root mean squared error (RMSE)
-  rmse = np.sqrt(np.mean(predictions - testing_y)**2)
+print()
+print(f'{stock_name} Data Processing Finished!')
 
-  print()
-  print(f'RMSE on testing data: {rmse}')
-  
-  ## visualizing results
-  train = prices[:train_len]
-  valid = prices[train_len + 60:]
+print(testing_x)
+print(testing_x)
 
-  predictTomorrow = predictions[-1]
-  
-  print(f'prediction for tmr: {predictTomorrow}')
-
-
-  valid = pd.DataFrame(valid)
-  valid = valid.set_index(tkr.index[lenPrices-len(valid):])
-  valid = valid.rename(columns = {0:'Close'})
-
-  train = pd.DataFrame(train)
-  train = train.set_index(tkr.index[:train_len])
-  train = train.rename(columns = {0:'Close'})
+## LSTM GENERATION ##
 
 '''
-  #Plot the data
-  valid["Predictions"] = predictions
+5 Layer Long Short-Term Memory Model
 
-  #visualize the data
-  plt.figure(figsize=(16,8))
-  plt.title('Model Accuracy')
-  plt.xlabel("Date")
-  plt.ylabel("Close Price")
+Layer 1: 128 units LSTM 
+Layer 2: 64 units LSTM
+Layer 3: 64 units LSTM
+Layer 4: 25 units Dense (Regular Neural Network)
+Layer 5: 1 unit Dense (Return Layer)
 
-  plt.plot(train['Close'])
-  plt.plot(valid[['Close', 'Predictions']])
-  plt.legend(['Train', 'Val', 'Predictions'], loc = 'lower right')
-  plt.savefig('prediction.jpg')
-
-  print(valid)
+Optimized to minimize MSE
 '''
+model = kr.models.Sequential()
+model.add(kr.layers.LSTM(128, return_sequences=True, input_shape=(training_x.shape[1], training_x.shape[2])))
+model.add(kr.layers.LSTM(64, return_sequences=True))
+model.add(kr.layers.LSTM(64, return_sequences=False))
+model.add(kr.layers.Dense(25))
+model.add(kr.layers.Dense(1))
+model.compile(optimizer='adam', loss='mean_squared_error') 
+
+print()
+print('LSTM Model Generated')
+
+#train the model
+model.fit(training_x, training_y, batch_size = 1, epochs = 1)
+
+## TESTING MODEL ##
+predictions = model.predict(testing_x)
+predictions = scaler.inverse_transform(predictions)
+
+#Get the root mean squared error (RMSE)
+rmse = np.sqrt(np.mean(predictions - testing_y)**2)
+
+print()
+print(f'RMSE on testing data: {rmse}')
+
+## visualizing results
+train = prices[:train_len]
+valid = prices[train_len:]
+
+predictTomorrow = predictions[-1]
+
+print(f'prediction for tmr: {predictTomorrow}')
+
+
+valid = pd.DataFrame(valid)
+valid = valid.set_index(tkr.index[lenPrices-len(valid):])
+valid = valid.rename(columns = {0:'Close'})
+
+train = pd.DataFrame(train)
+train = train.set_index(tkr.index[:train_len])
+train = train.rename(columns = {0:'Close'})
+
+#Plot the data
+valid["Predictions"] = predictions
+
+#visualize the data
+plt.figure(figsize=(16,8))
+plt.title('Model Accuracy')
+plt.xlabel("Date")
+plt.ylabel("Close Price")
+
+plt.plot(train['Close'])
+plt.plot(valid[['Close', 'Predictions']])
+plt.legend(['Train', 'Val', 'Predictions'], loc = 'lower right')
+plt.savefig('prediction.jpg')
+
+print(valid)
